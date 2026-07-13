@@ -18,7 +18,8 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from main import LINKS, LINKS_LOCK, require_auth, get_host, vless_link_for_link, save_state, log_activity
+# Don't import from main directly to avoid circular imports
+# We'll use a lazy import pattern or pass dependencies
 
 # ============================================================================
 # Data Models
@@ -299,11 +300,66 @@ class IPScannerCore:
 scanner = IPScannerCore()
 
 # ============================================================================
+# Helper functions that will be injected from main
+# ============================================================================
+
+# These will be set by main.py after import
+_main_links = None
+_main_links_lock = None
+_main_require_auth = None
+_main_get_host = None
+_main_vless_link_for_link = None
+_main_save_state = None
+_main_log_activity = None
+
+def set_main_dependencies(links, links_lock, require_auth, get_host, vless_link_for_link, save_state, log_activity):
+    """Set dependencies from main module to avoid circular imports"""
+    global _main_links, _main_links_lock, _main_require_auth, _main_get_host, _main_vless_link_for_link, _main_save_state, _main_log_activity
+    _main_links = links
+    _main_links_lock = links_lock
+    _main_require_auth = require_auth
+    _main_get_host = get_host
+    _main_vless_link_for_link = vless_link_for_link
+    _main_save_state = save_state
+    _main_log_activity = log_activity
+
+def get_links():
+    return _main_links
+
+def get_links_lock():
+    return _main_links_lock
+
+def require_auth_dep():
+    if _main_require_auth:
+        return _main_require_auth
+    raise ImportError("Main dependencies not set")
+
+def get_host():
+    if _main_get_host:
+        return _main_get_host
+    raise ImportError("Main dependencies not set")
+
+def vless_link_for_link(link, uid, host):
+    if _main_vless_link_for_link:
+        return _main_vless_link_for_link(link, uid, host)
+    raise ImportError("Main dependencies not set")
+
+def save_state():
+    if _main_save_state:
+        return _main_save_state()
+    raise ImportError("Main dependencies not set")
+
+def log_activity(kind, message, level="info"):
+    if _main_log_activity:
+        return _main_log_activity(kind, message, level)
+    raise ImportError("Main dependencies not set")
+
+# ============================================================================
 # API Endpoints
 # ============================================================================
 
 @router.post("/scan")
-async def start_scan(request: ScanRequest, _=Depends(require_auth)):
+async def start_scan(request: ScanRequest, _=Depends(require_auth_dep)):
     """Start a new IP scan"""
     if scanner.is_running:
         raise HTTPException(status_code=409, detail="Scan already in progress")
@@ -351,7 +407,7 @@ async def run_scan_background(ranges: List[str], request: ScanRequest):
     scanner.results = results
 
 @router.get("/status")
-async def get_scan_status(_=Depends(require_auth)):
+async def get_scan_status(_=Depends(require_auth_dep)):
     """Get current scan status"""
     return {
         "is_running": scanner.is_running,
@@ -363,7 +419,7 @@ async def get_scan_status(_=Depends(require_auth)):
     }
 
 @router.get("/results")
-async def get_scan_results(limit: int = 10, _=Depends(require_auth)):
+async def get_scan_results(limit: int = 10, _=Depends(require_auth_dep)):
     """Get scan results (top N)"""
     if scanner.is_running:
         raise HTTPException(status_code=409, detail="Scan still in progress")
@@ -406,34 +462,37 @@ async def get_scan_results(limit: int = 10, _=Depends(require_auth)):
     }
 
 @router.post("/apply")
-async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(require_auth)):
+async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(require_auth_dep)):
     """Apply a new IP to a configuration"""
-    async with LINKS_LOCK:
-        if request.uuid not in LINKS:
+    links = get_links()
+    links_lock = get_links_lock()
+    save_state_func = save_state
+    log_activity_func = log_activity
+    get_host_func = get_host
+    vless_link_func = vless_link_for_link
+    
+    async with links_lock:
+        if request.uuid not in links:
             raise HTTPException(status_code=404, detail="Configuration not found")
         
-        link = LINKS[request.uuid]
+        link = links[request.uuid]
         
         # Check if domain is not railway.app
-        host = get_host(req)
+        host = get_host_func(req)
         if 'railway.app' in host:
             raise HTTPException(status_code=400, detail="Cannot modify IP on railway.app domain")
         
         # Update the vless link with new IP
-        # The IP is embedded in the vless link, we need to regenerate it
-        # But we also need to update the actual configuration storage
-        
-        # Store the custom IP in the link data
         link['custom_ip'] = request.new_ip
         if request.new_port:
             link['custom_port'] = request.new_port
         
         # Regenerate the vless link with the new IP
-        new_vless = vless_link_for_link(link, request.uuid, request.new_ip)
+        new_vless = vless_link_func(link, request.uuid, request.new_ip)
         
-        log_activity("ipscanner", f"Applied IP {request.new_ip} to config {link.get('label', 'Unknown')}", "info")
+        log_activity_func("ipscanner", f"Applied IP {request.new_ip} to config {link.get('label', 'Unknown')}", "info")
     
-    await save_state()
+    await save_state_func()
     
     return {
         "ok": True,
@@ -443,9 +502,10 @@ async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(re
     }
 
 @router.post("/check-domain")
-async def check_domain(request: Request, _=Depends(require_auth)):
+async def check_domain(request: Request, _=Depends(require_auth_dep)):
     """Check if the current domain is suitable for IP modification"""
-    host = get_host(request)
+    get_host_func = get_host
+    host = get_host_func(request)
     is_railway = 'railway.app' in host
     return {
         "domain": host,
@@ -455,11 +515,11 @@ async def check_domain(request: Request, _=Depends(require_auth)):
     }
 
 @router.get("/predefined-ranges")
-async def get_predefined_ranges(_=Depends(require_auth)):
+async def get_predefined_ranges(_=Depends(require_auth_dep)):
     """Get predefined Cloudflare ranges"""
     return {"ranges": CIDR_RANGES}
 
 @router.get("/ports")
-async def get_common_ports(_=Depends(require_auth)):
+async def get_common_ports(_=Depends(require_auth_dep)):
     """Get common Cloudflare ports"""
     return {"ports": list(CLOUDFLARE_PORTS.keys())}

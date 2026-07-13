@@ -25,18 +25,12 @@ import re
 # Import QR generator
 from qr_generator import generate_qr_base64
 
-# Import IP Scanner
-from ip_scanner_integration import router as ip_scanner_router
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("MX-UI")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
 app = FastAPI(title="MX-UI", docs_url=None, redoc_url=None)
-
-# Include IP Scanner router
-app.include_router(ip_scanner_router)
 
 # ── Country Emoji Mapping ──────────────────────────────────────────────────────
 COUNTRY_EMOJIS = {
@@ -624,6 +618,23 @@ async def ensure_default_link():
                 }
                 asyncio.create_task(save_state())
         _default_link_created = True
+
+# ── Import IP Scanner and inject dependencies ────────────────────────────────
+from ip_scanner_integration import router as ip_scanner_router, set_main_dependencies
+
+# Inject dependencies to avoid circular imports
+set_main_dependencies(
+    links=LINKS,
+    links_lock=LINKS_LOCK,
+    require_auth=require_auth,
+    get_host=get_host,
+    vless_link_for_link=vless_link_for_link,
+    save_state=save_state,
+    log_activity=log_activity
+)
+
+# Include IP Scanner router
+app.include_router(ip_scanner_router)
 
 # ── Basic endpoints ───────────────────────────────────────────────────────────
 @app.get("/")
