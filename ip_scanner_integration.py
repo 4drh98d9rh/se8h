@@ -497,37 +497,41 @@ async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(re
         "uuid": request.uuid,
         "new_vless_link": new_vless
     }
-
 @router.post("/check-domain")
 async def check_domain(request: Request, _=Depends(require_auth_dep)):
     """Check if the current domain is suitable for IP modification"""
     try:
         get_host_func_local = get_host_func
         host = get_host_func_local(request)
-        is_railway = 'railway.app' in host
+        is_railway = 'railway.app' in host or 'railway' in host.lower()
         
         if is_railway:
             return {
+                "ok": True,
                 "domain": host,
                 "is_railway": True,
                 "can_modify_ip": False,
-                "message": "⚠️ Cannot modify IP on railway.app domain"
+                "message": "⚠️ Cannot modify IP on railway.app domain",
+                "status": "warning"
             }
         else:
             return {
+                "ok": True,
                 "domain": host,
                 "is_railway": False,
                 "can_modify_ip": True,
-                "message": "✅ Domain is suitable for IP modification"
+                "message": "✅ Domain is suitable for IP modification",
+                "status": "success"
             }
     except Exception as e:
         return {
+            "ok": False,
             "domain": "unknown",
             "is_railway": True,
             "can_modify_ip": False,
-            "message": f"⚠️ Error checking domain: {str(e)}"
+            "message": f"⚠️ Error: {str(e)}",
+            "status": "error"
         }
-
 @router.get("/predefined-ranges")
 async def get_predefined_ranges(_=Depends(require_auth_dep)):
     """Get predefined Cloudflare ranges"""

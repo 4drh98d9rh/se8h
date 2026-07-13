@@ -228,7 +228,6 @@ LOGIN_HTML = r"""<!DOCTYPE html>
     </script>
 </body>
 </html>"""
-
 # ---------- DASHBOARD_HTML (with Database Settings Modal & IP Scanner) ----------
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -398,7 +397,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         .input-focus-ring-cyan:focus {
             box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
         }
-        /* Persian font support */
         .font-persian {
             font-family: 'Vazirmatn', 'Inter', sans-serif;
         }
@@ -408,7 +406,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         .font-mixed {
             font-family: 'Inter', 'Vazirmatn', sans-serif;
         }
-        /* Toggle Switch Styles */
         .toggle-switch {
             position: relative;
             display: inline-block;
@@ -480,7 +477,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             padding-top: 0.5rem;
             padding-bottom: 0.5rem;
         }
-        
         .system-details-wrapper .detail-card {
             transform: translateY(30px) scale(0.97);
             opacity: 0;
@@ -492,14 +488,12 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             transform: translateY(0) scale(1);
             opacity: 1;
         }
-        
         .system-details-wrapper.open .detail-card:nth-child(1) { transition-delay: 0.05s; }
         .system-details-wrapper.open .detail-card:nth-child(2) { transition-delay: 0.10s; }
         .system-details-wrapper.open .detail-card:nth-child(3) { transition-delay: 0.15s; }
         .system-details-wrapper.open .detail-card:nth-child(4) { transition-delay: 0.20s; }
         .system-details-wrapper.open .detail-card:nth-child(5) { transition-delay: 0.25s; }
         .system-details-wrapper.open .detail-card:nth-child(6) { transition-delay: 0.30s; }
-        
         .detail-card {
             transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
                         border-color 0.25s ease,
@@ -510,7 +504,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             border-color: rgba(59, 130, 246, 0.4);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
-        
         #toggleSystemBtn {
             transition: all 0.3s ease;
         }
@@ -520,7 +513,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         #toggleSystemBtn:active {
             transform: scale(0.95);
         }
-        
         #toggleSystemIcon {
             transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: inline-block;
@@ -528,11 +520,9 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         #toggleSystemIcon.rotated {
             transform: rotate(180deg) scale(1.1);
         }
-        
         #toggleSystemText {
             transition: all 0.3s ease;
         }
-        
         #systemMainStats > div {
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
@@ -541,7 +531,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             border-color: rgba(59, 130, 246, 0.25);
             box-shadow: 0 4px 20px rgba(59, 130, 246, 0.05);
         }
-        
         .circle-chart.updating {
             animation: pulse-chart 0.5s ease;
         }
@@ -550,19 +539,15 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             50% { opacity: 1; stroke-width: 4; }
             100% { opacity: 0.7; }
         }
-        
         .stat-value {
             transition: all 0.3s ease;
         }
-        
         .config-row {
             transition: all 0.2s ease;
         }
         .config-row .toggle-label {
             transition: all 0.3s ease;
         }
-        
-        /* Database Modal Styles */
         .db-card {
             background: rgba(15, 23, 42, 0.5);
             border: 1px solid rgba(51, 65, 85, 0.5);
@@ -622,8 +607,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             border-color: #22c55e;
             background: rgba(34, 197, 94, 0.05);
         }
-        
-        /* IP Scanner Styles */
         .ip-result-row {
             transition: all 0.2s ease;
             cursor: pointer;
@@ -1048,7 +1031,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
                     </div>
                     <div>
                         <p class="text-xs text-slate-400 font-english">Checking domain...</p>
-                        <p class="text-xs font-mono text-slate-500 font-english" id="domainCheckText">Loading...</p>
+                        <p class="text-xs font-mono text-slate-300 font-english" id="domainCheckText">Loading...</p>
                     </div>
                 </div>
                 
@@ -1757,7 +1740,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
                     loadDatabaseInfo();
                 }
                 if (modalId === 'ipScannerModal') {
-                    checkDomain();
+                    setTimeout(checkDomain, 200);
                     resetIPScannerState();
                 }
             } else {
@@ -2390,6 +2373,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             selectedIP = null;
             document.getElementById('applyIPBtn').disabled = true;
             document.getElementById('applyIPBtn').innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Apply Selected';
+            document.getElementById('applyStatus').textContent = 'Select an IP to apply';
             document.getElementById('scanProgressBar').style.width = '0%';
             document.getElementById('scanProgressPercent').textContent = '0%';
             document.getElementById('scanStats').textContent = 'Found: 0 IPs';
@@ -2407,18 +2391,21 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
                 
                 if (data.is_railway) {
                     icon.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>';
-                    text.textContent = '⚠️ ' + data.message + ' - IP modification is disabled';
+                    text.textContent = data.message || '⚠️ Cannot modify IP on railway.app domain';
                     text.className = 'text-xs font-mono text-amber-400 font-english';
                     document.getElementById('applyIPBtn').disabled = true;
                 } else {
                     icon.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>';
-                    text.textContent = '✅ ' + data.message;
+                    text.textContent = data.message || '✅ Domain is suitable for IP modification';
                     text.className = 'text-xs font-mono text-emerald-400 font-english';
+                    document.getElementById('applyIPBtn').disabled = false;
                 }
                 lucide.createIcons();
             } catch (e) {
                 console.error('Domain check failed:', e);
-                document.getElementById('domainCheckText').textContent = '❌ Failed to check domain';
+                const text = document.getElementById('domainCheckText');
+                text.textContent = '❌ Failed to check domain: ' + e.message;
+                text.className = 'text-xs font-mono text-red-400 font-english';
             }
         }
 
