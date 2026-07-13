@@ -18,9 +18,6 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-# Don't import from main directly to avoid circular imports
-# We'll use a lazy import pattern or pass dependencies
-
 # ============================================================================
 # Data Models
 # ============================================================================
@@ -334,9 +331,9 @@ def require_auth_dep():
         return _main_require_auth
     raise ImportError("Main dependencies not set")
 
-def get_host():
+def get_host_func(request=None):
     if _main_get_host:
-        return _main_get_host
+        return _main_get_host(request)
     raise ImportError("Main dependencies not set")
 
 def vless_link_for_link(link, uid, host):
@@ -344,12 +341,12 @@ def vless_link_for_link(link, uid, host):
         return _main_vless_link_for_link(link, uid, host)
     raise ImportError("Main dependencies not set")
 
-def save_state():
+def save_state_func():
     if _main_save_state:
         return _main_save_state()
     raise ImportError("Main dependencies not set")
 
-def log_activity(kind, message, level="info"):
+def log_activity_func(kind, message, level="info"):
     if _main_log_activity:
         return _main_log_activity(kind, message, level)
     raise ImportError("Main dependencies not set")
@@ -466,9 +463,9 @@ async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(re
     """Apply a new IP to a configuration"""
     links = get_links()
     links_lock = get_links_lock()
-    save_state_func = save_state
-    log_activity_func = log_activity
-    get_host_func = get_host
+    save_state_func = save_state_func
+    log_activity_func = log_activity_func
+    get_host_func_local = get_host_func
     vless_link_func = vless_link_for_link
     
     async with links_lock:
@@ -478,7 +475,7 @@ async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(re
         link = links[request.uuid]
         
         # Check if domain is not railway.app
-        host = get_host_func(req)
+        host = get_host_func_local(req)
         if 'railway.app' in host:
             raise HTTPException(status_code=400, detail="Cannot modify IP on railway.app domain")
         
@@ -504,15 +501,32 @@ async def apply_ip_to_config(request: ApplyIPRequest, req: Request, _=Depends(re
 @router.post("/check-domain")
 async def check_domain(request: Request, _=Depends(require_auth_dep)):
     """Check if the current domain is suitable for IP modification"""
-    get_host_func = get_host
-    host = get_host_func(request)
-    is_railway = 'railway.app' in host
-    return {
-        "domain": host,
-        "is_railway": is_railway,
-        "can_modify_ip": not is_railway,
-        "message": "Cannot modify IP on railway.app domain" if is_railway else "Domain is suitable for IP modification"
-    }
+    try:
+        get_host_func_local = get_host_func
+        host = get_host_func_local(request)
+        is_railway = 'railway.app' in host
+        
+        if is_railway:
+            return {
+                "domain": host,
+                "is_railway": True,
+                "can_modify_ip": False,
+                "message": "⚠️ Cannot modify IP on railway.app domain"
+            }
+        else:
+            return {
+                "domain": host,
+                "is_railway": False,
+                "can_modify_ip": True,
+                "message": "✅ Domain is suitable for IP modification"
+            }
+    except Exception as e:
+        return {
+            "domain": "unknown",
+            "is_railway": True,
+            "can_modify_ip": False,
+            "message": f"⚠️ Error checking domain: {str(e)}"
+        }
 
 @router.get("/predefined-ranges")
 async def get_predefined_ranges(_=Depends(require_auth_dep)):
