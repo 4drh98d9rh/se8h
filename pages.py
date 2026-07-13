@@ -229,9 +229,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 </body>
 </html>"""
 
-
-# ---------- DASHBOARD_HTML (with Database Settings Modal) ----------
-# ---------- DASHBOARD_HTML (with Persian font support) ----------
+# ---------- DASHBOARD_HTML (with Database Settings Modal & IP Scanner) ----------
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -397,6 +395,9 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         .input-focus-ring-green:focus {
             box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
         }
+        .input-focus-ring-cyan:focus {
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+        }
         /* Persian font support */
         .font-persian {
             font-family: 'Vazirmatn', 'Inter', sans-serif;
@@ -460,16 +461,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         .group:hover .toggle-label {
             color: #e2e8f0;
         }
-        /* Persian font support - Vazirmatn for Persian characters */
-.font-persian {
-    font-family: 'Vazirmatn', 'Inter', sans-serif;
-}
-.font-english {
-    font-family: 'Inter', 'Vazirmatn', sans-serif;
-}
-.font-mixed {
-    font-family: 'Inter', 'Vazirmatn', sans-serif;
-}
         .system-details-wrapper {
             overflow: hidden;
             max-height: 0;
@@ -631,6 +622,60 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             border-color: #22c55e;
             background: rgba(34, 197, 94, 0.05);
         }
+        
+        /* IP Scanner Styles */
+        .ip-result-row {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .ip-result-row:hover {
+            background-color: rgba(6, 182, 212, 0.05);
+        }
+        .ip-result-row.selected {
+            background-color: rgba(6, 182, 212, 0.15);
+            border-left: 2px solid #06b6d4;
+        }
+        .scan-progress-bar {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .domain-check-icon {
+            transition: all 0.3s ease;
+        }
+        .rating-badge {
+            font-size: 9px;
+            padding: 1px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .rating-badge.excellent {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+        .rating-badge.good {
+            background: rgba(6, 182, 212, 0.15);
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+        .rating-badge.average {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        .rating-badge.slow {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        .ip-select-btn {
+            transition: all 0.2s ease;
+        }
+        .ip-select-btn:hover {
+            transform: scale(1.05);
+        }
+        .ip-select-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="font-sans text-slate-200 min-h-screen flex flex-col relative antialiased tracking-tight">
@@ -654,14 +699,16 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
                     <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     Online
                 </span>
+                <!-- IP Scanner Button -->
+                <button onclick="toggleModal('ipScannerModal', true)" class="text-slate-400 hover:text-cyan-400 text-xs sm:text-sm font-medium flex items-center gap-1 p-1.5 sm:p-0 transition-all duration-300 hover:scale-105 font-english" title="IP Scanner">
+                    <i data-lucide="scan" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span class="hidden xs:inline font-english">IP Scanner</span>
+                </button>
                 <!-- Database Settings Button -->
                 <button onclick="toggleModal('databaseModal', true)" class="text-slate-400 hover:text-emerald-400 text-xs sm:text-sm font-medium flex items-center gap-1 p-1.5 sm:p-0 transition-all duration-300 hover:scale-105 font-english" title="Database Settings">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 sm:w-5 sm:h-5">
-                        <!-- Top Cylinder -->
                         <ellipse cx="12" cy="5" rx="9" ry="3" />
-                        <!-- Middle Cylinder -->
                         <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                        <!-- Bottom Cylinder -->
                         <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6" />
                     </svg>
                     <span class="hidden xs:inline font-english">Database</span>
@@ -973,6 +1020,153 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         </div>
     </footer>
 
+    <!-- ===== MODAL: IP SCANNER ===== -->
+    <div id="ipScannerModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
+            <!-- Header -->
+            <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40 shrink-0">
+                <div class="flex items-center space-x-3 min-w-0">
+                    <div class="p-2 bg-cyan-500/10 rounded-lg text-cyan-400 border border-cyan-500/20 shrink-0">
+                        <i data-lucide="scan" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-base sm:text-lg font-bold text-slate-100 truncate font-english">IP Scanner</h3>
+                        <p class="text-[10px] sm:text-xs text-slate-400 truncate font-english">Find better Cloudflare IPs for your configs</p>
+                    </div>
+                </div>
+                <button onclick="toggleModal('ipScannerModal', false)" class="p-1.5 sm:p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all duration-300">
+                    <i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1 scrollable-modal-content">
+                <!-- Domain Check -->
+                <div id="domainCheckResult" class="mb-4 p-3 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center domain-check-icon" id="domainCheckIcon">
+                        <i data-lucide="loader-2" class="w-4 h-4 text-slate-400 animate-spin"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-english">Checking domain...</p>
+                        <p class="text-xs font-mono text-slate-500 font-english" id="domainCheckText">Loading...</p>
+                    </div>
+                </div>
+                
+                <!-- Scan Configuration -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 font-english">IP Ranges</label>
+                        <select id="scan-ranges" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-all duration-300 font-mono font-english input-focus-ring-cyan">
+                            <option value="all">All Cloudflare Ranges (15 ranges)</option>
+                            <option value="173.245.48.0/20,103.21.244.0/22,103.22.200.0/22">Small (3 ranges)</option>
+                            <option value="104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,162.158.0.0/15">Medium (4 ranges)</option>
+                            <option value="108.162.192.0/18,141.101.64.0/18,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,162.158.0.0/15,131.0.72.0/22,173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17">All Ranges</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 font-english">IPs Per Range</label>
+                        <input type="number" id="scan-count" value="100" min="1" max="10000" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-all duration-300 font-mono font-english input-focus-ring-cyan">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 font-english">Ports</label>
+                        <select id="scan-ports" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-all duration-300 font-mono font-english input-focus-ring-cyan">
+                            <option value="443">HTTPS (443)</option>
+                            <option value="443,8443">HTTPS + Alt (443, 8443)</option>
+                            <option value="443,8443,2053,2083,2087,2096">All Common</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 font-english">Workers</label>
+                        <select id="scan-workers" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-all duration-300 font-mono font-english input-focus-ring-cyan">
+                            <option value="50">50 (Slow)</option>
+                            <option value="100" selected>100 (Recommended)</option>
+                            <option value="200">200 (Fast)</option>
+                            <option value="300">300 (Very Fast)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 font-english">Timeout (sec)</label>
+                        <select id="scan-timeout" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-all duration-300 font-mono font-english input-focus-ring-cyan">
+                            <option value="2">2 (Fast)</option>
+                            <option value="3" selected>3 (Default)</option>
+                            <option value="5">5 (Slow)</option>
+                            <option value="10">10 (Very Slow)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Scan Button & Progress -->
+                <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                    <button onclick="startIPScan()" id="scanStartBtn" class="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-cyan-600/10 hover:shadow-cyan-600/25 flex items-center justify-center gap-2 font-english">
+                        <i data-lucide="play" class="w-4 h-4"></i>
+                        Start Scan
+                    </button>
+                    <button onclick="cancelIPScan()" id="scanCancelBtn" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 flex items-center justify-center gap-2 font-english hidden">
+                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                        Cancel
+                    </button>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div id="scanProgressContainer" class="hidden mb-4">
+                    <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                        <span id="scanProgressText" class="font-english">Scanning...</span>
+                        <span id="scanProgressPercent" class="font-mono font-english">0%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="scanProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full scan-progress-bar" style="width: 0%;"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span id="scanStats" class="font-english">Found: 0 IPs</span>
+                        <span id="scanStatus" class="font-english">Idle</span>
+                    </div>
+                </div>
+                
+                <!-- Results Table -->
+                <div id="scanResultsContainer" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider font-english">Top 10 Results</h4>
+                        <span id="totalFoundLabel" class="text-[10px] text-slate-500 font-english">Total: 0 IPs</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[10px] sm:text-xs">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-700/50">
+                                    <th class="text-left py-2 px-2 font-english">#</th>
+                                    <th class="text-left py-2 px-2 font-english">IP Address</th>
+                                    <th class="text-left py-2 px-2 font-english">Port</th>
+                                    <th class="text-left py-2 px-2 font-english">Ping (ms)</th>
+                                    <th class="text-left py-2 px-2 font-english">Speed (ms)</th>
+                                    <th class="text-left py-2 px-2 font-english">Rating</th>
+                                    <th class="text-center py-2 px-2 font-english">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scanResultsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <span id="applyStatus" class="text-[10px] text-slate-500 font-english">Select an IP to apply</span>
+                        <button onclick="applySelectedIP()" id="applyIPBtn" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-xl transition-all duration-300 shadow-lg shadow-emerald-600/10 hover:shadow-emerald-600/25 flex items-center gap-2 font-english disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            Apply Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-end shrink-0">
+                <button onclick="toggleModal('ipScannerModal', false)" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 font-english">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== MODAL: DATABASE SETTINGS ===== -->
     <div id="databaseModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
@@ -1104,6 +1298,8 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             </div>
         </div>
     </div>
+
+    <!-- ===== MODAL: INBOUND ===== -->
     <div id="inboundModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
             <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40 shrink-0">
@@ -1186,6 +1382,8 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             </div>
         </div>
     </div>
+
+    <!-- ===== MODAL: EDIT ===== -->
     <div id="editModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
             <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40 shrink-0">
@@ -1273,7 +1471,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     <!-- ===== MODAL: QR ===== -->
     <div id="qrModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-3xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
-            <!-- Header -->
             <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40 shrink-0">
                 <div class="flex items-center space-x-3 min-w-0">
                     <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400 border border-blue-500/20 shrink-0">
@@ -1336,7 +1533,6 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
                 </button>
             </div>
 
-            <!-- QR Content -->
             <div class="p-4 sm:p-6 overflow-y-auto flex-1 scrollable-modal-content">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4">
                     <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 text-center qr-code-container transition-all duration-300 hover:border-blue-500/30">
@@ -1412,102 +1608,101 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     </div>
 
     <!-- ===== MODAL: SETTINGS ===== -->
-    <!-- ===== MODAL: SETTINGS ===== -->
-<div id="settingsModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
-    <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
-        <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40 shrink-0">
-            <div class="flex items-center space-x-3 min-w-0">
-                <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400 border border-blue-500/20 shrink-0"><i data-lucide="settings" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
-                <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg font-bold text-slate-100 truncate font-english">Settings</h3>
-                    <p class="text-[10px] sm:text-xs text-slate-400 truncate font-english">Manage dashboard paths and security</p>
+    <div id="settingsModal" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden modal-glow max-h-[95vh] flex flex-col transition-all duration-300 transform scale-95 opacity-0 active:scale-100 active:opacity-100">
+            <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40 shrink-0">
+                <div class="flex items-center space-x-3 min-w-0">
+                    <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400 border border-blue-500/20 shrink-0"><i data-lucide="settings" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
+                    <div class="min-w-0">
+                        <h3 class="text-base sm:text-lg font-bold text-slate-100 truncate font-english">Settings</h3>
+                        <p class="text-[10px] sm:text-xs text-slate-400 truncate font-english">Manage dashboard paths and security</p>
+                    </div>
+                </div>
+                <button onclick="toggleModal('settingsModal', false)" class="p-1.5 sm:p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all duration-300"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+            </div>
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1 scrollable-modal-content space-y-4 sm:space-y-6">
+                <!-- Change Password Section -->
+                <div>
+                    <h4 class="text-xs sm:text-sm font-semibold text-slate-200 mb-3 sm:mb-4 flex items-center gap-2 font-english">
+                        <i data-lucide="key" class="w-3 h-3 sm:w-4 sm:h-4 text-blue-400"></i>
+                        Change Password
+                    </h4>
+                    <div class="space-y-3 sm:space-y-4">
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Current Password</label>
+                            <input type="password" id="settings-current-pw" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-all duration-300 input-focus-ring font-english" placeholder="Enter current password">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">New Password</label>
+                            <input type="password" id="settings-new-pw" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-all duration-300 input-focus-ring font-english" placeholder="At least 4 characters">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Confirm New Password</label>
+                            <input type="password" id="settings-confirm-pw" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-all duration-300 input-focus-ring font-english" placeholder="Repeat new password">
+                        </div>
+                        <div id="settingsError" class="text-[10px] sm:text-xs text-red-400 hidden font-english"></div>
+                        <button onclick="changePassword()" class="w-full py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-blue-600/10 hover:shadow-blue-600/25 font-english">
+                            Update Password
+                        </button>
+                    </div>
+                </div>
+                <div class="border-t border-slate-800/60"></div>
+                <!-- Path Settings Section -->
+                <div>
+                    <h4 class="text-xs sm:text-sm font-semibold text-slate-200 mb-3 sm:mb-4 flex items-center gap-2 font-english">
+                        <i data-lucide="folder-tree" class="w-3 h-3 sm:w-4 sm:h-4 text-purple-400"></i>
+                        Dashboard Paths
+                    </h4>
+                    <div class="space-y-3 sm:space-y-4">
+                        <!-- Dashboard Path -->
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Dashboard Path</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="text" id="settings-dashboard-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/dashboard">
+                                <button onclick="updatePath('dashboard')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
+                            </div>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-dashboard-path" class="text-slate-400 font-mono font-english">/dashboard</span></p>
+                        </div>
+                        
+                        <!-- Login Path -->
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Login Path</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="text" id="settings-login-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/login">
+                                <button onclick="updatePath('login')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
+                            </div>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-login-path" class="text-slate-400 font-mono font-english">/login</span></p>
+                        </div>
+                        
+                        <!-- Subscription Path -->
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Subscription Path</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="text" id="settings-sub-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/sub">
+                                <button onclick="updatePath('sub')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
+                            </div>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-sub-path" class="text-slate-400 font-mono font-english">/sub</span></p>
+                        </div>
+                        
+                        <!-- Setup Path -->
+                        <div>
+                            <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Setup Path</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="text" id="settings-setup-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/setup">
+                                <button onclick="updatePath('setup')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
+                            </div>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-setup-path" class="text-slate-400 font-mono font-english">/setup</span></p>
+                        </div>
+                        
+                        <div id="pathSettingsError" class="text-[10px] sm:text-xs text-red-400 hidden font-english"></div>
+                    </div>
                 </div>
             </div>
-            <button onclick="toggleModal('settingsModal', false)" class="p-1.5 sm:p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all duration-300"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-        </div>
-        <div class="p-4 sm:p-6 overflow-y-auto flex-1 scrollable-modal-content space-y-4 sm:space-y-6">
-            <!-- Change Password Section -->
-            <div>
-                <h4 class="text-xs sm:text-sm font-semibold text-slate-200 mb-3 sm:mb-4 flex items-center gap-2 font-english">
-                    <i data-lucide="key" class="w-3 h-3 sm:w-4 sm:h-4 text-blue-400"></i>
-                    Change Password
-                </h4>
-                <div class="space-y-3 sm:space-y-4">
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Current Password</label>
-                        <input type="password" id="settings-current-pw" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-all duration-300 input-focus-ring font-english" placeholder="Enter current password">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">New Password</label>
-                        <input type="password" id="settings-new-pw" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-all duration-300 input-focus-ring font-english" placeholder="At least 4 characters">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Confirm New Password</label>
-                        <input type="password" id="settings-confirm-pw" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-all duration-300 input-focus-ring font-english" placeholder="Repeat new password">
-                    </div>
-                    <div id="settingsError" class="text-[10px] sm:text-xs text-red-400 hidden font-english"></div>
-                    <button onclick="changePassword()" class="w-full py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-blue-600/10 hover:shadow-blue-600/25 font-english">
-                        Update Password
-                    </button>
-                </div>
+            <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-end shrink-0">
+                <button onclick="toggleModal('settingsModal', false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 font-english">Close</button>
             </div>
-            <div class="border-t border-slate-800/60"></div>
-            <!-- Path Settings Section -->
-            <div>
-                <h4 class="text-xs sm:text-sm font-semibold text-slate-200 mb-3 sm:mb-4 flex items-center gap-2 font-english">
-                    <i data-lucide="folder-tree" class="w-3 h-3 sm:w-4 sm:h-4 text-purple-400"></i>
-                    Dashboard Paths
-                </h4>
-                <div class="space-y-3 sm:space-y-4">
-                    <!-- Dashboard Path -->
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Dashboard Path</label>
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <input type="text" id="settings-dashboard-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/dashboard">
-                            <button onclick="updatePath('dashboard')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
-                        </div>
-                        <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-dashboard-path" class="text-slate-400 font-mono font-english">/dashboard</span></p>
-                    </div>
-                    
-                    <!-- Login Path -->
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Login Path</label>
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <input type="text" id="settings-login-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/login">
-                            <button onclick="updatePath('login')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
-                        </div>
-                        <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-login-path" class="text-slate-400 font-mono font-english">/login</span></p>
-                    </div>
-                    
-                    <!-- Subscription Path -->
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Subscription Path</label>
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <input type="text" id="settings-sub-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/sub">
-                            <button onclick="updatePath('sub')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
-                        </div>
-                        <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-sub-path" class="text-slate-400 font-mono font-english">/sub</span></p>
-                    </div>
-                    
-                    <!-- Setup Path - NEW -->
-                    <div>
-                        <label class="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 font-english">Setup Path</label>
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <input type="text" id="settings-setup-path" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-purple-500 transition-all duration-300 input-focus-ring-purple font-english" placeholder="/setup">
-                            <button onclick="updatePath('setup')" class="sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-600/10 hover:shadow-purple-600/25 font-english">Update</button>
-                        </div>
-                        <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1 font-english">Current: <span id="current-setup-path" class="text-slate-400 font-mono font-english">/setup</span></p>
-                    </div>
-                    
-                    <div id="pathSettingsError" class="text-[10px] sm:text-xs text-red-400 hidden font-english"></div>
-                </div>
-            </div>
-        </div>
-        <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-end shrink-0">
-            <button onclick="toggleModal('settingsModal', false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 font-english">Close</button>
         </div>
     </div>
-</div>
 
     <!-- ===== MODAL: ALERT ===== -->
     <div id="customAlert" class="custom-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80">
@@ -1561,12 +1756,22 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
                 if (modalId === 'databaseModal') {
                     loadDatabaseInfo();
                 }
+                if (modalId === 'ipScannerModal') {
+                    checkDomain();
+                    resetIPScannerState();
+                }
             } else {
                 target.classList.remove('active');
                 document.body.style.overflow = '';
                 if (modalContent) {
                     modalContent.style.transform = 'scale(0.95)';
                     modalContent.style.opacity = '0';
+                }
+                if (modalId === 'ipScannerModal') {
+                    if (scanInterval) {
+                        clearInterval(scanInterval);
+                        scanInterval = null;
+                    }
                 }
             }
             if (modalId === 'settingsModal' && show) {
@@ -2026,87 +2231,88 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 
         // ---- Settings: update paths ----
         async function updatePath(type) {
-    const errEl = document.getElementById('pathSettingsError');
-    errEl.classList.add('hidden');
+            const errEl = document.getElementById('pathSettingsError');
+            errEl.classList.add('hidden');
 
-    let pathInput;
-    if (type === 'dashboard') {
-        pathInput = document.getElementById('settings-dashboard-path');
-    } else if (type === 'login') {
-        pathInput = document.getElementById('settings-login-path');
-    } else if (type === 'sub') {
-        pathInput = document.getElementById('settings-sub-path');
-    } else if (type === 'setup') {  // جدید
-        pathInput = document.getElementById('settings-setup-path');
-    }
+            let pathInput;
+            if (type === 'dashboard') {
+                pathInput = document.getElementById('settings-dashboard-path');
+            } else if (type === 'login') {
+                pathInput = document.getElementById('settings-login-path');
+            } else if (type === 'sub') {
+                pathInput = document.getElementById('settings-sub-path');
+            } else if (type === 'setup') {
+                pathInput = document.getElementById('settings-setup-path');
+            }
 
-    let newPath = pathInput.value.trim();
-    if (!newPath) {
-        errEl.textContent = 'Path cannot be empty.';
-        errEl.classList.remove('hidden');
-        return;
-    }
-    if (!newPath.startsWith('/')) {
-        newPath = '/' + newPath;
-    }
-    if (!/^\/[a-zA-Z0-9\-_/]*$/.test(newPath)) {
-        errEl.textContent = 'Path must start with / and contain only letters, numbers, hyphens, underscores, and slashes.';
-        errEl.classList.remove('hidden');
-        return;
-    }
+            let newPath = pathInput.value.trim();
+            if (!newPath) {
+                errEl.textContent = 'Path cannot be empty.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            if (!newPath.startsWith('/')) {
+                newPath = '/' + newPath;
+            }
+            if (!/^\/[a-zA-Z0-9\-_/]*$/.test(newPath)) {
+                errEl.textContent = 'Path must start with / and contain only letters, numbers, hyphens, underscores, and slashes.';
+                errEl.classList.remove('hidden');
+                return;
+            }
 
-    try {
-        const res = await fetch('/api/update-path', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path_type: type, new_path: newPath })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || 'Failed to update path');
+            try {
+                const res = await fetch('/api/update-path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path_type: type, new_path: newPath })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || 'Failed to update path');
 
-        document.getElementById('current-' + type + '-path').textContent = newPath;
-        pathInput.value = '';
-        triggerAlert('Path Updated', type.charAt(0).toUpperCase() + type.slice(1) + ' path changed to: ' + newPath, 'check-circle');
+                document.getElementById('current-' + type + '-path').textContent = newPath;
+                pathInput.value = '';
+                triggerAlert('Path Updated', type.charAt(0).toUpperCase() + type.slice(1) + ' path changed to: ' + newPath, 'check-circle');
 
-        if (type === 'dashboard') {
-            setTimeout(() => {
-                location.href = newPath;
-            }, 1500);
+                if (type === 'dashboard') {
+                    setTimeout(() => {
+                        location.href = newPath;
+                    }, 1500);
+                }
+                if (type === 'setup') {
+                    setTimeout(() => {
+                        location.href = newPath;
+                    }, 1500);
+                }
+            } catch (e) {
+                errEl.textContent = e.message;
+                errEl.classList.remove('hidden');
+            }
         }
-        if (type === 'setup') {
-            setTimeout(() => {
-                location.href = newPath;
-            }, 1500);
-        }
-    } catch (e) {
-        errEl.textContent = e.message;
-        errEl.classList.remove('hidden');
-    }
-}
+
         // ---- Load current paths ----
         async function loadSettingsPaths() {
-    try {
-        const res = await fetch('/api/get-paths');
-        const data = await res.json();
+            try {
+                const res = await fetch('/api/get-paths');
+                const data = await res.json();
 
-        document.getElementById('current-dashboard-path').textContent = data.dashboard_path || '/dashboard';
-        document.getElementById('current-login-path').textContent = data.login_path || '/login';
-        document.getElementById('current-sub-path').textContent = data.sub_path || '/sub';
-        document.getElementById('current-setup-path').textContent = data.setup_path || '/setup';  // جدید
+                document.getElementById('current-dashboard-path').textContent = data.dashboard_path || '/dashboard';
+                document.getElementById('current-login-path').textContent = data.login_path || '/login';
+                document.getElementById('current-sub-path').textContent = data.sub_path || '/sub';
+                document.getElementById('current-setup-path').textContent = data.setup_path || '/setup';
 
-        const dashboardInput = document.getElementById('settings-dashboard-path');
-        const loginInput = document.getElementById('settings-login-path');
-        const subInput = document.getElementById('settings-sub-path');
-        const setupInput = document.getElementById('settings-setup-path');  // جدید
+                const dashboardInput = document.getElementById('settings-dashboard-path');
+                const loginInput = document.getElementById('settings-login-path');
+                const subInput = document.getElementById('settings-sub-path');
+                const setupInput = document.getElementById('settings-setup-path');
 
-        if (dashboardInput) dashboardInput.placeholder = data.dashboard_path || '/dashboard';
-        if (loginInput) loginInput.placeholder = data.login_path || '/login';
-        if (subInput) subInput.placeholder = data.sub_path || '/sub';
-        if (setupInput) setupInput.placeholder = data.setup_path || '/setup';  // جدید
-    } catch (e) {
-        console.error('Error loading paths:', e);
-    }
-}
+                if (dashboardInput) dashboardInput.placeholder = data.dashboard_path || '/dashboard';
+                if (loginInput) loginInput.placeholder = data.login_path || '/login';
+                if (subInput) subInput.placeholder = data.sub_path || '/sub';
+                if (setupInput) setupInput.placeholder = data.setup_path || '/setup';
+            } catch (e) {
+                console.error('Error loading paths:', e);
+            }
+        }
 
         // ---- Reset Traffic ----
         async function resetTraffic(uuid) {
@@ -2166,122 +2372,412 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
             }
         }
 
-        // Fetch and render configs
-        // Fetch and render configs
-async function loadConfigs() {
-    try {
-        const res = await fetch('/api/links');
-        if (!res.ok) throw new Error('Unauthorized');
-        const data = await res.json();
-        const links = data.links || [];
-        const container = document.getElementById('config-list');
-        if (!links.length) {
-            container.innerHTML = '<div class="p-6 text-center text-slate-400 text-sm font-english">No configurations yet. Click "Add Config" to create one.</div>';
-            return;
-        }
-        container.innerHTML = links.map(l => {
-            const protoLabels = {
-                'vless-ws': 'VLESS',
-                'xhttp-packet-up': 'XHTTP',
-                'xhttp-stream-up': 'XHTTP'
-            };
-            const proto = l.protocol || 'vless-ws';
-            const label = l.label || 'Unnamed';
-            const isDefault = l.is_default || false;
-            const active = l.active && !l.expired;
-            const limit = l.limit_bytes === 0 ? '∞' : fmtBytes(l.limit_bytes);
-            const used = fmtBytes(l.used_bytes || 0);
-            const pct = l.limit_bytes === 0 ? 0 : Math.min(100, (l.used_bytes / l.limit_bytes) * 100);
-            const color = pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#3b82f6';
-            let speedDisplay = '∞';
-            if (l.speed_limit_bytes && l.speed_limit_bytes > 0) {
-                speedDisplay = (l.speed_limit_bytes * 8 / 1024 / 1024).toFixed(1) + ' Mbps';
+        // ===== IP SCANNER FUNCTIONS =====
+        let selectedIP = null;
+        let scanResults = [];
+        let scanInterval = null;
+
+        function resetIPScannerState() {
+            document.getElementById('scanProgressContainer').classList.add('hidden');
+            document.getElementById('scanResultsContainer').classList.add('hidden');
+            document.getElementById('scanStartBtn').disabled = false;
+            document.getElementById('scanStartBtn').innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Start Scan';
+            document.getElementById('scanCancelBtn').classList.add('hidden');
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
             }
-            const statusDot = active ? 'status-dot active' : 'status-dot inactive';
-            const statusText = active ? 'Active' : 'Inactive';
-            const statusClass = active ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
-                'text-red-400 bg-red-500/10 border-red-500/20';
-
-            // اگر کانفیگ پیش‌فرض است، دکمه‌های اکشن رو غیرفعال یا مخفی کن
-            const actionButtons = isDefault ? `
-                <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 font-english" title="Default configuration - cannot be modified">
-                    <i data-lucide="shield" class="w-3 h-3 inline mr-1"></i>Protected
-                </span>
-            ` : `
-                <button onclick="openEditModal('${label}','${proto}','${l.fingerprint||'chrome'}','${l.alpn||''}',${l.limit_bytes ? (l.limit_bytes / 1024 / 1024) : 0},${l.expires_at ? Math.ceil((new Date(l.expires_at) - Date.now()) / (86400000)) : 0},${l.ip_limit||0},${l.speed_limit_bytes ? (l.speed_limit_bytes * 8 / 1024 / 1024) : 0},'${l.speed_limit_unit || 'MBIT'}','${l.uuid}')" class="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-all duration-300" title="Edit"><i data-lucide="edit-3" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-                <button onclick="resetTraffic('${l.uuid}')" class="p-1.5 sm:p-2 bg-blue-800/20 hover:bg-blue-800/40 border border-blue-700/30 text-blue-300 rounded-xl transition-all duration-300" title="Reset Traffic"><i data-lucide="rotate-ccw" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-                <button onclick="deleteConfig('${l.uuid}')" class="p-1.5 sm:p-2 bg-red-800/20 hover:bg-red-800/40 border border-red-700/30 text-red-300 rounded-xl transition-all duration-300" title="Delete"><i data-lucide="trash-2" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-            `;
-
-            // اگر کانفیگ پیش‌فرض است، toggle رو غیرفعال کن
-            const toggleHtml = isDefault ? `
-                <label class="relative inline-flex items-center cursor-not-allowed group shrink-0 opacity-60">
-                    <input type="checkbox" class="sr-only" ${active ? 'checked' : ''} disabled>
-                    <div class="w-9 h-5 bg-slate-600 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${active ? 'after:translate-x-full' : ''}"></div>
-                    <span class="toggle-label transition-all duration-300 font-english">${active ? 'Enabled' : 'Disabled'}</span>
-                </label>
-            ` : `
-                <label class="relative inline-flex items-center cursor-pointer group shrink-0">
-                    <input type="checkbox" class="sr-only peer" ${active ? 'checked' : ''} onchange="toggleConfigStatus('${l.uuid}', this.checked)">
-                    <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:border-emerald-600"></div>
-                    <span class="toggle-label transition-all duration-300 group-hover:text-slate-200 font-english">${active ? 'Enabled' : 'Disabled'}</span>
-                </label>
-            `;
-
-            // اضافه کردن نشان Default به نام
-            const defaultBadge = isDefault ? `<span class="text-[8px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-mono font-english">Default</span>` : '';
-
-            return `
-            <div class="p-4 sm:p-6 config-row transition-all duration-200 hover:bg-slate-800/20 ${isDefault ? 'border-l-2 border-amber-500/50' : ''}" data-uuid="${l.uuid}">
-                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
-                    <div class="flex items-start space-x-3 sm:space-x-4 min-w-0">
-                        <span class="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide mt-0.5 font-mono shrink-0 font-english">${protoLabels[proto] || proto}</span>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h3 class="text-sm sm:text-base font-semibold text-slate-200 truncate font-mixed">${label}</h3>
-                                ${defaultBadge}
-                                <span class="text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded font-medium ${statusClass} shrink-0 transition-all duration-300 font-english">
-                                    <span class="${statusDot}"></span>${statusText}
-                                </span>
-                            </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 mt-1 text-[10px] sm:text-xs text-slate-400">
-                                <div class="font-english">Network: <span class="text-slate-300 font-mono font-english">${proto.includes('ws') ? 'ws' : 'tcp'}</span></div>
-                                <div class="font-english">Security: <span class="text-slate-300 font-mono font-english">tls</span></div>
-                                <div class="col-span-2 sm:col-span-1 font-english">Expiry: <span class="text-slate-300 font-mono font-english">${l.expires_at ? new Date(l.expires_at).toISOString().slice(0,10) : 'Unlimited'}</span></div>
-                            </div>
-                            <div class="mt-1 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-slate-400">
-                                <span class="font-english">Usage: <span class="text-slate-300 font-mono font-english">${used} / ${limit}</span></span>
-                                <span class="font-english">IP: <span class="text-slate-300 font-mono font-english">${l.ip_limit || '∞'}</span></span>
-                                <span class="font-english">Speed: <span class="text-slate-300 font-mono font-english">${speedDisplay}</span></span>
-                            </div>
-                            <div class="w-full max-w-xs mt-1.5 h-1.5 bg-slate-800/60 rounded-full overflow-hidden">
-                                <div class="h-full rounded-full transition-all duration-500" style="width: ${pct}%; background: ${color};"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:justify-end">
-                        ${toggleHtml}
-                        
-                        <div class="relative flex-grow sm:flex-grow-0 min-w-[180px] sm:min-w-[220px] max-w-full sm:max-w-xs">
-                            <input type="text" id="uri-${l.uuid}" readonly value="${l.vless_link}" class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 pr-7 sm:pr-10 text-[8px] sm:text-[10px] font-mono text-slate-400 focus:outline-none select-all truncate font-english">
-                            <button onclick="copyLink('uri-${l.uuid}')" class="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 p-0.5 sm:p-1 text-slate-500 hover:text-slate-300 transition-all duration-300"><i data-lucide="copy" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-                        </div>
-                        <button onclick="openQrModal('${label}', '${l.vless_link}', '${l.sub_url}')" class="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-all duration-300" title="QR"><i data-lucide="qr-code" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-                        <button onclick="window.open('/sub/user?uuid=${l.uuid}', '_blank')" class="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-all duration-300" title="Subscription"><i data-lucide="external-link" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-                        ${actionButtons}
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-        lucide.createIcons();
-        updateStats();
-        if (systemDetailsVisible) {
-            updateSystemDetails();
+            selectedIP = null;
+            document.getElementById('applyIPBtn').disabled = true;
+            document.getElementById('applyIPBtn').innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Apply Selected';
+            document.getElementById('scanProgressBar').style.width = '0%';
+            document.getElementById('scanProgressPercent').textContent = '0%';
+            document.getElementById('scanStats').textContent = 'Found: 0 IPs';
+            document.getElementById('scanStatus').textContent = 'Idle';
+            setTimeout(lucide.createIcons, 50);
         }
-    } catch (e) {
-        if (e.message.includes('Unauthorized')) location.href = '/login';
-    }
-}
+
+        async function checkDomain() {
+            try {
+                const res = await fetch('/api/ipscanner/check-domain');
+                const data = await res.json();
+                
+                const icon = document.getElementById('domainCheckIcon');
+                const text = document.getElementById('domainCheckText');
+                
+                if (data.is_railway) {
+                    icon.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>';
+                    text.textContent = '⚠️ ' + data.message + ' - IP modification is disabled';
+                    text.className = 'text-xs font-mono text-amber-400 font-english';
+                    document.getElementById('applyIPBtn').disabled = true;
+                } else {
+                    icon.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>';
+                    text.textContent = '✅ ' + data.message;
+                    text.className = 'text-xs font-mono text-emerald-400 font-english';
+                }
+                lucide.createIcons();
+            } catch (e) {
+                console.error('Domain check failed:', e);
+                document.getElementById('domainCheckText').textContent = '❌ Failed to check domain';
+            }
+        }
+
+        async function startIPScan() {
+            const ranges = document.getElementById('scan-ranges').value;
+            const count = parseInt(document.getElementById('scan-count').value) || 100;
+            const portsStr = document.getElementById('scan-ports').value;
+            const ports = portsStr.split(',').map(p => parseInt(p.trim()));
+            const workers = parseInt(document.getElementById('scan-workers').value) || 100;
+            const timeout = parseFloat(document.getElementById('scan-timeout').value) || 3;
+            
+            if (count < 1 || count > 10000) {
+                toast('IP count must be between 1 and 10000', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('scanStartBtn');
+            const cancelBtn = document.getElementById('scanCancelBtn');
+            const container = document.getElementById('scanProgressContainer');
+            const resultsContainer = document.getElementById('scanResultsContainer');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Scanning...';
+            cancelBtn.classList.remove('hidden');
+            container.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+            document.getElementById('scanProgressBar').style.width = '0%';
+            document.getElementById('scanProgressPercent').textContent = '0%';
+            document.getElementById('scanStats').textContent = 'Found: 0 IPs';
+            document.getElementById('scanStatus').textContent = 'Starting...';
+            lucide.createIcons();
+            
+            try {
+                const res = await fetch('/api/ipscanner/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ip_range: ranges,
+                        count_per_range: count,
+                        ports: ports,
+                        workers: workers,
+                        timeout: timeout
+                    })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Scan failed');
+                }
+                
+                const data = await res.json();
+                toast('Scan started: ' + data.message, 'info');
+                
+                if (scanInterval) clearInterval(scanInterval);
+                scanInterval = setInterval(pollScanStatus, 1000);
+                
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Start Scan';
+                cancelBtn.classList.add('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        async function pollScanStatus() {
+            try {
+                const res = await fetch('/api/ipscanner/status');
+                const data = await res.json();
+                
+                document.getElementById('scanProgressBar').style.width = data.progress + '%';
+                document.getElementById('scanProgressPercent').textContent = Math.round(data.progress) + '%';
+                document.getElementById('scanStats').textContent = `Found: ${data.found} IPs`;
+                document.getElementById('scanStatus').textContent = data.status_message || 'Scanning...';
+                
+                if (!data.is_running) {
+                    clearInterval(scanInterval);
+                    scanInterval = null;
+                    
+                    document.getElementById('scanStartBtn').disabled = false;
+                    document.getElementById('scanStartBtn').innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Start Scan';
+                    document.getElementById('scanCancelBtn').classList.add('hidden');
+                    document.getElementById('scanStatus').textContent = 'Scan complete!';
+                    lucide.createIcons();
+                    
+                    await loadScanResults();
+                }
+            } catch (e) {
+                console.error('Status poll error:', e);
+            }
+        }
+
+        async function loadScanResults() {
+            try {
+                const res = await fetch('/api/ipscanner/results?limit=10');
+                const data = await res.json();
+                
+                const container = document.getElementById('scanResultsContainer');
+                const tbody = document.getElementById('scanResultsBody');
+                
+                if (!data.results || data.results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-500 font-english">No results found</td></tr>';
+                    container.classList.remove('hidden');
+                    return;
+                }
+                
+                scanResults = data.results;
+                document.getElementById('totalFoundLabel').textContent = `Total: ${data.total_found} IPs`;
+                
+                tbody.innerHTML = data.results.map((r, idx) => {
+                    const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${r.rank}`;
+                    const ratingClass = r.rating ? r.rating.toLowerCase() : '';
+                    const ratingDisplay = r.rating || 'N/A';
+                    const pingColor = r.ping && r.ping < 30 ? 'text-emerald-400' : 
+                                     r.ping && r.ping < 60 ? 'text-amber-400' : 'text-red-400';
+                    
+                    return `
+                        <tr class="ip-result-row border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors" 
+                            onclick="selectIPResult('${r.ip}', ${r.port}, ${idx})"
+                            id="ip-row-${idx}">
+                            <td class="py-2 px-2 text-slate-400 font-mono font-english">${rankEmoji}</td>
+                            <td class="py-2 px-2 text-slate-200 font-mono font-english">${r.ip}</td>
+                            <td class="py-2 px-2 text-amber-400 font-mono font-english">${r.port}</td>
+                            <td class="py-2 px-2 ${pingColor} font-mono font-english">${r.ping ? r.ping.toFixed(1) : 'N/A'}</td>
+                            <td class="py-2 px-2 text-slate-300 font-mono font-english">${r.speed ? r.speed.toFixed(1) : 'N/A'}</td>
+                            <td class="py-2 px-2">
+                                <span class="rating-badge ${ratingClass} font-english">${ratingDisplay}</span>
+                            </td>
+                            <td class="py-2 px-2 text-center">
+                                <button onclick="event.stopPropagation(); selectIPResult('${r.ip}', ${r.port}, ${idx})" 
+                                        class="ip-select-btn px-2 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition font-english">
+                                    Select
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                container.classList.remove('hidden');
+                lucide.createIcons();
+                
+            } catch (e) {
+                console.error('Load results error:', e);
+                toast('Failed to load results', 'error');
+            }
+        }
+
+        function selectIPResult(ip, port, idx) {
+            document.querySelectorAll('#scanResultsBody tr').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            const row = document.getElementById(`ip-row-${idx}`);
+            if (row) {
+                row.classList.add('selected');
+            }
+            
+            selectedIP = { ip, port };
+            document.getElementById('applyIPBtn').disabled = false;
+            document.getElementById('applyIPBtn').innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> Apply ${ip}:${port}`;
+            document.getElementById('applyStatus').textContent = `Selected: ${ip}:${port}`;
+            setTimeout(lucide.createIcons, 50);
+        }
+
+        function cancelIPScan() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+            
+            document.getElementById('scanStartBtn').disabled = false;
+            document.getElementById('scanStartBtn').innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Start Scan';
+            document.getElementById('scanCancelBtn').classList.add('hidden');
+            document.getElementById('scanStatus').textContent = 'Cancelled';
+            toast('Scan cancelled', 'info');
+            lucide.createIcons();
+        }
+
+        async function applySelectedIP() {
+            if (!selectedIP) {
+                toast('Please select an IP first', 'error');
+                return;
+            }
+            
+            const domainRes = await fetch('/api/ipscanner/check-domain');
+            const domainData = await domainRes.json();
+            if (domainData.is_railway) {
+                toast('Cannot modify IP on railway.app domain', 'error');
+                return;
+            }
+            
+            const configs = await fetch('/api/links').then(r => r.json());
+            const links = configs.links || [];
+            
+            if (links.length === 0) {
+                toast('No configurations available', 'error');
+                return;
+            }
+            
+            const target = links.find(l => !l.is_default);
+            if (!target) {
+                toast('No config available for IP modification', 'error');
+                return;
+            }
+            
+            const confirmApply = await customConfirm(
+                `Apply IP ${selectedIP.ip}:${selectedIP.port} to config "${target.label || 'Unnamed'}"?`
+            );
+            
+            if (!confirmApply) return;
+            
+            try {
+                const res = await fetch('/api/ipscanner/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        uuid: target.uuid,
+                        new_ip: selectedIP.ip,
+                        new_port: selectedIP.port
+                    })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to apply IP');
+                }
+                
+                const data = await res.json();
+                toast(`✅ Applied ${selectedIP.ip}:${selectedIP.port} to config`, 'success');
+                
+                loadConfigs();
+                
+                document.querySelectorAll('#scanResultsBody tr').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                selectedIP = null;
+                document.getElementById('applyIPBtn').disabled = true;
+                document.getElementById('applyIPBtn').innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Apply Selected';
+                document.getElementById('applyStatus').textContent = 'Select an IP to apply';
+                setTimeout(lucide.createIcons, 50);
+                
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+            }
+        }
+
+        // ---- Fetch and render configs ----
+        async function loadConfigs() {
+            try {
+                const res = await fetch('/api/links');
+                if (!res.ok) throw new Error('Unauthorized');
+                const data = await res.json();
+                const links = data.links || [];
+                const container = document.getElementById('config-list');
+                if (!links.length) {
+                    container.innerHTML = '<div class="p-6 text-center text-slate-400 text-sm font-english">No configurations yet. Click "Add Config" to create one.</div>';
+                    return;
+                }
+                container.innerHTML = links.map(l => {
+                    const protoLabels = {
+                        'vless-ws': 'VLESS',
+                        'xhttp-packet-up': 'XHTTP',
+                        'xhttp-stream-up': 'XHTTP'
+                    };
+                    const proto = l.protocol || 'vless-ws';
+                    const label = l.label || 'Unnamed';
+                    const isDefault = l.is_default || false;
+                    const active = l.active && !l.expired;
+                    const limit = l.limit_bytes === 0 ? '∞' : fmtBytes(l.limit_bytes);
+                    const used = fmtBytes(l.used_bytes || 0);
+                    const pct = l.limit_bytes === 0 ? 0 : Math.min(100, (l.used_bytes / l.limit_bytes) * 100);
+                    const color = pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#3b82f6';
+                    let speedDisplay = '∞';
+                    if (l.speed_limit_bytes && l.speed_limit_bytes > 0) {
+                        speedDisplay = (l.speed_limit_bytes * 8 / 1024 / 1024).toFixed(1) + ' Mbps';
+                    }
+                    const statusDot = active ? 'status-dot active' : 'status-dot inactive';
+                    const statusText = active ? 'Active' : 'Inactive';
+                    const statusClass = active ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                        'text-red-400 bg-red-500/10 border-red-500/20';
+
+                    const actionButtons = isDefault ? `
+                        <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 font-english" title="Default configuration - cannot be modified">
+                            <i data-lucide="shield" class="w-3 h-3 inline mr-1"></i>Protected
+                        </span>
+                    ` : `
+                        <button onclick="openEditModal('${label}','${proto}','${l.fingerprint||'chrome'}','${l.alpn||''}',${l.limit_bytes ? (l.limit_bytes / 1024 / 1024) : 0},${l.expires_at ? Math.ceil((new Date(l.expires_at) - Date.now()) / (86400000)) : 0},${l.ip_limit||0},${l.speed_limit_bytes ? (l.speed_limit_bytes * 8 / 1024 / 1024) : 0},'${l.speed_limit_unit || 'MBIT'}','${l.uuid}')" class="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-all duration-300" title="Edit"><i data-lucide="edit-3" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                        <button onclick="resetTraffic('${l.uuid}')" class="p-1.5 sm:p-2 bg-blue-800/20 hover:bg-blue-800/40 border border-blue-700/30 text-blue-300 rounded-xl transition-all duration-300" title="Reset Traffic"><i data-lucide="rotate-ccw" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                        <button onclick="deleteConfig('${l.uuid}')" class="p-1.5 sm:p-2 bg-red-800/20 hover:bg-red-800/40 border border-red-700/30 text-red-300 rounded-xl transition-all duration-300" title="Delete"><i data-lucide="trash-2" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                    `;
+
+                    const toggleHtml = isDefault ? `
+                        <label class="relative inline-flex items-center cursor-not-allowed group shrink-0 opacity-60">
+                            <input type="checkbox" class="sr-only" ${active ? 'checked' : ''} disabled>
+                            <div class="w-9 h-5 bg-slate-600 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${active ? 'after:translate-x-full' : ''}"></div>
+                            <span class="toggle-label transition-all duration-300 font-english">${active ? 'Enabled' : 'Disabled'}</span>
+                        </label>
+                    ` : `
+                        <label class="relative inline-flex items-center cursor-pointer group shrink-0">
+                            <input type="checkbox" class="sr-only peer" ${active ? 'checked' : ''} onchange="toggleConfigStatus('${l.uuid}', this.checked)">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:border-emerald-600"></div>
+                            <span class="toggle-label transition-all duration-300 group-hover:text-slate-200 font-english">${active ? 'Enabled' : 'Disabled'}</span>
+                        </label>
+                    `;
+
+                    const defaultBadge = isDefault ? `<span class="text-[8px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-mono font-english">Default</span>` : '';
+
+                    return `
+                    <div class="p-4 sm:p-6 config-row transition-all duration-200 hover:bg-slate-800/20 ${isDefault ? 'border-l-2 border-amber-500/50' : ''}" data-uuid="${l.uuid}">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
+                            <div class="flex items-start space-x-3 sm:space-x-4 min-w-0">
+                                <span class="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide mt-0.5 font-mono shrink-0 font-english">${protoLabels[proto] || proto}</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="text-sm sm:text-base font-semibold text-slate-200 truncate font-mixed">${label}</h3>
+                                        ${defaultBadge}
+                                        <span class="text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded font-medium ${statusClass} shrink-0 transition-all duration-300 font-english">
+                                            <span class="${statusDot}"></span>${statusText}
+                                        </span>
+                                    </div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 mt-1 text-[10px] sm:text-xs text-slate-400">
+                                        <div class="font-english">Network: <span class="text-slate-300 font-mono font-english">${proto.includes('ws') ? 'ws' : 'tcp'}</span></div>
+                                        <div class="font-english">Security: <span class="text-slate-300 font-mono font-english">tls</span></div>
+                                        <div class="col-span-2 sm:col-span-1 font-english">Expiry: <span class="text-slate-300 font-mono font-english">${l.expires_at ? new Date(l.expires_at).toISOString().slice(0,10) : 'Unlimited'}</span></div>
+                                    </div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-slate-400">
+                                        <span class="font-english">Usage: <span class="text-slate-300 font-mono font-english">${used} / ${limit}</span></span>
+                                        <span class="font-english">IP: <span class="text-slate-300 font-mono font-english">${l.ip_limit || '∞'}</span></span>
+                                        <span class="font-english">Speed: <span class="text-slate-300 font-mono font-english">${speedDisplay}</span></span>
+                                    </div>
+                                    <div class="w-full max-w-xs mt-1.5 h-1.5 bg-slate-800/60 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all duration-500" style="width: ${pct}%; background: ${color};"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:justify-end">
+                                ${toggleHtml}
+                                
+                                <div class="relative flex-grow sm:flex-grow-0 min-w-[180px] sm:min-w-[220px] max-w-full sm:max-w-xs">
+                                    <input type="text" id="uri-${l.uuid}" readonly value="${l.vless_link}" class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 pr-7 sm:pr-10 text-[8px] sm:text-[10px] font-mono text-slate-400 focus:outline-none select-all truncate font-english">
+                                    <button onclick="copyLink('uri-${l.uuid}')" class="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 p-0.5 sm:p-1 text-slate-500 hover:text-slate-300 transition-all duration-300"><i data-lucide="copy" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                                </div>
+                                <button onclick="openQrModal('${label}', '${l.vless_link}', '${l.sub_url}')" class="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-all duration-300" title="QR"><i data-lucide="qr-code" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                                <button onclick="window.open('/sub/user?uuid=${l.uuid}', '_blank')" class="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-all duration-300" title="Subscription"><i data-lucide="external-link" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                                ${actionButtons}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+                lucide.createIcons();
+                updateStats();
+                if (systemDetailsVisible) {
+                    updateSystemDetails();
+                }
+            } catch (e) {
+                if (e.message.includes('Unauthorized')) location.href = '/login';
+            }
+        }
+
         async function updateStats() {
             try {
                 const res = await fetch('/stats');
